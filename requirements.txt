@@ -1,7 +1,8 @@
 streamlit
 pandas
 numpy
-rdkit-pypi
+rdkit
 supabase
 matplotlib
 openai
+
