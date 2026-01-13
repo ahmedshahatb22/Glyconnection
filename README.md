@@ -23,5 +23,12 @@ Ahmed Shahat Belal
 Chemistry Graduate – Drug Design & Natural Products  
 GitHub: https://github.com/ahmedshahatb22
 
+## Citation
+
+If you use Glyconnection in your research, please cite it as:
+
+Ahmed Shahat Belal (2026). Glyconnection. GitHub repository. https://github.com/ahmedshahatb22/Glyconnection  
+DOI: [10.5281/zenodo.18236882](https://doi.org/10.5281/zenodo.18236881)
+
 ## Year
 2026
