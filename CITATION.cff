@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+title: "Glyconnection: AI-assisted Glycosidic Linkage Optimization Platform"
+message: "If you use this software in your research, please cite it as below."
+type: software
+
+authors:
+  - family-names: Shahat Belal
+    given-names: Ahmed
+
+version: 1.0.0
+date-released: 2026-01-13
+
+url: "https://github.com/ahmedshahatb22/Glyconnection"
+
+license: Apache-2.0
+
+keywords:
+  - glycosides
+  - drug design
+  - cheminformatics
+  - rdkit
+  - ai
+  - admet
