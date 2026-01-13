@@ -1,0 +1,6 @@
+streamlit
+pandas
+numpy
+rdkit-pypi
+supabase
+matplotlib
