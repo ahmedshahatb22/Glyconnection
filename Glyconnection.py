@@ -353,6 +353,9 @@ st.markdown("""<hr>
             Ahmed Shahat Belal
         </a>
         — GLYCONNECTION
+        <a href=" https://doi.org/10.5281/zenodo.18236882" target="_blank" style="text-decoration: none;">
+            DOI
     </div>
     """,
+
     unsafe_allow_html=True)
