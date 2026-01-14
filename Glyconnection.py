@@ -359,3 +359,15 @@ st.markdown("""<hr>
     """,
 
     unsafe_allow_html=True)
+
+
+def log_visit():
+    # أول مرة فقط في الجلسة
+    if "session_id" not in st.session_state:
+        st.session_state.session_id = str(uuid.uuid4())
+
+        supabase.table("visits").insert({
+            "session_id": st.session_state.session_id
+        }).execute()
+
+log_visit()
