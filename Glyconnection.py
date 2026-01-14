@@ -2,6 +2,8 @@
 # IMPORTS
 # =====================================================
 import streamlit as st
+import uuid
+import datetime
 from rdkit import Chem
 from rdkit.Chem import Descriptors
 import pandas as pd
@@ -371,3 +373,4 @@ def log_visit():
         }).execute()
 
 log_visit()
+
