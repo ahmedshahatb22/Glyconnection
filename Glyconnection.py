@@ -28,7 +28,7 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 # BASIC UTILITIES
 # =====================================================
 def mol_from_smiles(smiles):
-    mol = Chem.MolFromSmiles(smiles)
+    mol = Chem.MolFromSmiles(smiles, sanitize=True)
     if mol is None:
         raise ValueError("Invalid SMILES")
     return mol
@@ -59,13 +59,120 @@ def lipinski_hits(mol):
 # =====================================================
 # GLYCOSIDE LOGIC
 # =====================================================
-def generate_variants(aglycone, sugar):
+def find_anomeric_carbon(sugar_mol):
+    for atom in sugar_mol.GetAtoms():
+        if atom.GetSymbol() != "C":
+            continue
+
+        oxy_neighbors = [n for n in atom.GetNeighbors() if n.GetSymbol() == "O"]
+        if len(oxy_neighbors) >= 2:
+            return atom.GetIdx()
+
+    return None
+
+def find_linkage_atoms(aglycone_mol, atom_symbol):
+    return [
+        atom.GetIdx()
+        for atom in aglycone_mol.GetAtoms()
+        if atom.GetSymbol() == atom_symbol
+    ]
+
+
+def create_glycoside(aglycone_smiles, sugar_smiles, atom_symbol):
+    aglycone = Chem.MolFromSmiles(aglycone_smiles)
+    sugar = Chem.MolFromSmiles(sugar_smiles)
+    if aglycone is None or sugar is None:
+        raise ValueError("Invalid input SMILES")
+
+    sugar = Chem.AddHs(sugar)
+    rw_sugar = Chem.RWMol(sugar)
+
+    anomeric_idx = find_anomeric_carbon(sugar)
+    if anomeric_idx is None:
+        return {"status": "failed", "reason": "No anomeric carbon"}
+
+    anomeric = rw_sugar.GetAtomWithIdx(anomeric_idx)
+
+    oh_idx = None
+    for nbr in anomeric.GetNeighbors():
+        if nbr.GetSymbol() == "O" and not nbr.IsInRing():
+            oh_idx = nbr.GetIdx()
+            break
+
+    if oh_idx is None:
+        return {"status": "failed", "reason": "No anomeric OH"}
+
+    # نحول OH إلى O- (leaving group)
+    o_atom = rw_sugar.GetAtomWithIdx(oh_idx)
+    o_atom.SetFormalCharge(-1)
+    o_atom.SetNumExplicitHs(0)
+
+    sugar = rw_sugar.GetMol()
+    sugar = Chem.RemoveHs(sugar)
+
+    combo = Chem.CombineMols(aglycone, sugar)
+    rw = Chem.RWMol(combo)
+
+    sugar_offset = aglycone.GetNumAtoms()
+    anomeric_new = anomeric_idx + sugar_offset
+
+    # ====================================
+    # بدل الربط الأول: نجرب كل الذرات الممكنة
+    # ====================================
+    linkage_atoms = [
+        atom.GetIdx() for atom in aglycone.GetAtoms()
+        if atom.GetSymbol() == atom_symbol
+    ]
+
+    if not linkage_atoms:
+        return {
+            "status": "failed",
+            "reason": f"No {atom_symbol} atom in aglycone"
+        }
+
+    success_smiles = None
+
+    for linkage_idx in linkage_atoms:
+        try:
+            rw_trial = Chem.RWMol(rw)  # نسخ جديد لكل محاولة
+            rw_trial.AddBond(linkage_idx, anomeric_new, Chem.BondType.SINGLE)
+            rw_trial.RemoveBond(anomeric_new, oh_idx + sugar_offset)
+            rw_trial.RemoveAtom(oh_idx + sugar_offset)
+
+            mol = rw_trial.GetMol()
+            Chem.SanitizeMol(mol)
+
+            success_smiles = Chem.MolToSmiles(mol, isomericSmiles=True)
+            break  # أول نجاح يكفي
+
+        except Exception:
+            continue  # نجرب الذرة التالية
+
+    if success_smiles is None:
+        return {
+            "status": "unstable",
+            "smiles": Chem.MolToSmiles(mol, canonical=False),
+            "reason": f"{atom_symbol}-linkage not chemically feasible"
+        }
+
     return {
-        "O-glycoside": f"{aglycone}O{sugar}",
-        "N-glycoside": f"{aglycone}N{sugar}",
-        "C-glycoside": f"{aglycone}C{sugar}",
-        "S-glycoside": f"{aglycone}S{sugar}"
+        "status": "ok",
+        "smiles": success_smiles
     }
+
+
+def generate_variants(aglycone, sugar):
+    variants = {}
+    for atom, name in [("O", "O-glycoside"),
+                       ("N", "N-glycoside"),
+                       ("S", "S-glycoside"),
+                       ("C", "C-glycoside")]:
+        try:
+            smi = create_glycoside(aglycone, sugar, atom)
+            variants[name] = smi
+        except:
+            continue
+    return variants
 
 
 def score_variant(mol, desc):
@@ -74,76 +181,131 @@ def score_variant(mol, desc):
     return round(score, 3)
 
 
-def analyze_linkage(aglycone, sugar):
-    variants = generate_variants(aglycone, sugar)
-    results = {}
-
-    for link_type, smi in variants.items():
-        try:
-            mol = mol_from_smiles(smi)
-            desc = calc_descriptors(mol)
-            score = score_variant(mol, desc)
-
-            results[link_type] = {
-                "SMILES": smi,
-                **desc,
-                "Lipinski": lipinski_hits(mol),
-                "score": score
-            }
-        except:
-            continue
-
-    if not results:
-        return None, None
-
-    best = max(results, key=lambda x: results[x]["score"])
-    return best, results
-
-
-def explain(best, all_results):
+def explain(best, all_scores):
     explanation = f"""
 Best glycosidic linkage: {best}
 
-Scientific reasoning:
+Reasoning:
 """
-    for k, v in all_results.items():
+    for k, v in all_scores.items():
         explanation += f"""
-{k}
-- score: {v['score']}
-- LogP: {v['LogP']}
-- TPSA: {v['TPSA']}
+{k}:
+- score = {v['score']}
+- LogP = {v['LogP']}
+- TPSA = {v['TPSA']}
 """
 
     explanation += """
 General interpretation:
 • O-glycosides → higher solubility
 • N-glycosides → metabolic stability
-• C-glycosides → chemical stability
+• C-glycosides → highest chemical stability
 • S-glycosides → lipophilicity modulation
 """
     return explanation
+
+
+    explanation = explain(best, results)
+
+
+
+# =====================================================
+# LOAD TRAINING DATA FROM SUPABASE
+# =====================================================
+@st.cache_data
+def load_training_data():
+    res = supabase.table("data - delta").select(
+        "smiles, glycoside_type, linkage_atom"
+    ).execute()
+    return pd.DataFrame(res.data)
+
+
+
+def analyze_training_data(df):
+    stats = {}
+
+    for atom in ["O", "N", "S", "C"]:
+        sub = df[df["linkage_atom"] == atom]
+
+        stats[atom] = {
+            "count": len(sub),
+            "freq": len(sub) / max(len(df), 1)
+        }
+
+    return stats
+
+
+def training_bonus(linkage_atom, training_stats):
+    """
+    bias from Supabase data
+    """
+    freq = training_stats.get(linkage_atom, {}).get("freq", 0)
+    return round(freq * 5, 3)   # weight قابل للتعديل
+
+
+def score_variant_with_training(mol, desc, linkage_atom, training_stats):
+    base = score_variant(mol, desc)
+    bonus = training_bonus(linkage_atom, training_stats)
+    return round(base + bonus, 3)
+
+
+
+def analyze_linkage(aglycone, sugar):
+    variants = generate_variants(aglycone, sugar)
+    results = {}
+
+    for link_type, smi_info in variants.items():
+        # نتجاهل أي variant فشل
+        if smi_info.get("status") != "ok":
+            continue  # مش هنعمل أي حاجة، مش هيتضاف للنتيجة
+
+        try:
+            mol = Chem.MolFromSmiles(smi_info["smiles"])
+            desc = calc_descriptors(mol)
+            score = score_variant(mol, desc)
+
+            results[link_type] = {
+                "status": "ok",
+                "SMILES": smi_info["smiles"],
+                "score": score,
+                **desc
+            }
+
+        except Exception as e:
+            # لو حصل exception كيميائي أثناء الحساب، نتجاهله برضه
+            continue
+
+    if not results:
+        return None, None  # لو كل حاجة فشلت، نرجع None
+
+    # أفضل variant حسب score
+    best = max(results, key=lambda x: results[x]["score"])
+    return best, results
+
+
+
+
+
+
 
 # =====================================================
 # MAIN PIPELINE
 # =====================================================
 def run_pipeline(aglycone, sugar):
     best, all_results = analyze_linkage(aglycone, sugar)
-
     if best is None:
         return None
-
     explanation = explain(best, all_results)
-
     supabase.table("results").insert({
         "aglycone": aglycone,
         "sugar": sugar,
         "best_linkage": best,
         "score": float(all_results[best]["score"])
     }).execute()
-
+    # نرجع best + كل الأنواع مع التفاصيل
     return {
         "best": best,
-        "all": all_results,
+        "all": all_results,  # يحتوي كل variants
         "explanation": explanation
     }
 
@@ -177,7 +339,7 @@ if "result" in st.session_state:
     st.subheader("Scientific Explanation")
     st.text(res["explanation"])
 
-    st.subheader("All Variants Comparison")
+    st.subheader("The possible variants")
     df = pd.DataFrame(res["all"]).T
     st.dataframe(df)
 
@@ -192,10 +354,8 @@ if "result" in st.session_state:
     st.write(
         f"""
         The {res['best']}-glycosidic linkage shows the best balance between
-        molecular weight, polarity (LogP), hydrogen bonding capacity, and TPSA.
+        molecular weight, polarity (LogP), hydrogen bonding capacity, TPSA, and has the highest score.
 
-        This suggests improved bioavailability and ADMET profile
-        compared to other linkage types.
         """
     )
 
@@ -214,26 +374,6 @@ if "result" in st.session_state:
     st.info("Result saved to database")
 
 # ==============================
-# Smart Glycoside AI – Core Script
-# ==============================
-
-# --------- BASIC UTILS ---------
-def mol_from_smiles(smiles):
-    mol = Chem.MolFromSmiles(smiles)
-    if mol is None:
-        raise ValueError("Invalid SMILES")
-    return mol
-
-def calc_descriptors(smiles):
-    mol = mol_from_smiles(smiles)
-    return {
-        "MW": Descriptors.MolWt(mol),
-        "LogP": Descriptors.MolLogP(mol),
-        "HBD": Descriptors.NumHDonors(mol),
-        "HBA": Descriptors.NumHAcceptors(mol),
-        "TPSA": Descriptors.TPSA(mol),
-        "RotB": Descriptors.NumRotatableBonds(mol)
-    }
 
 # --------- CHECK DB ---------
 def exists_in_db(smiles):
@@ -246,91 +386,7 @@ def save_molecule(smiles, desc):
         **desc
     }).execute()
 
-# --------- GLYCOSIDE GENERATION ---------
-def generate_variants(aglycone, sugar):
-    variants = {
-        "O-glycoside": f"{aglycone}O{sugar}",
-        "N-glycoside": f"{aglycone}N{sugar}",
-        "S-glycoside": f"{aglycone}S{sugar}",
-        "C-glycoside": f"{aglycone}C{sugar}"
-    }
-    return variants
 
-# --------- SCORING ---------
-def score_variant(desc):
-    score = (
-        -0.01 * desc["MW"] +
-        -0.5 * abs(desc["LogP"] - 2) +
-        0.3 * desc["HBD"] +
-        0.3 * desc["HBA"] +
-        -0.01 * desc["TPSA"]
-    )
-    return round(score, 3)
-
-# --------- LLM EXPLANATION (Rule-based placeholder) ---------
-def explain(best, all_scores):
-    explanation = f"""
-Best glycosidic linkage: {best}
-
-Reasoning:
-"""
-    for k, v in all_scores.items():
-        explanation += f"""
-{k}:
-- score = {v['score']}
-- LogP = {v['LogP']}
-- TPSA = {v['TPSA']}
-"""
-
-    explanation += """
-General interpretation:
-• O-glycosides → higher solubility
-• N-glycosides → metabolic stability
-• C-glycosides → highest chemical stability
-• S-glycosides → lipophilicity modulation
-"""
-    return explanation
-
-# --------- MAIN PIPELINE ---------
-def run_pipeline(aglycone_smiles, sugar_smiles):
-
-    # Check & store base molecules
-    for smi in [aglycone, sugar]:
-        if not exists_in_db(smi):
-            desc = calc_descriptors(smi)
-            save_molecule(smi, desc)
-
-    # Generate variants
-    variants = generate_variants(aglycone, sugar)
-
-    results = {}
-
-    for link_type, smi in variants.items():
-        try:
-            desc = calc_descriptors(smi)
-            score = score_variant(desc)
-
-            results[link_type] = {
-                "smiles": smi,
-                **desc,
-                "score": score
-            }
-
-            # save each variant
-            supabase.table("variants").insert({
-                "linkage": link_type,
-                "smiles": smi,
-                **desc,
-                "score": score
-            }).execute()
-
-        except:
-            continue
-
-    # Choose best
-    best = max(results, key=lambda x: results[x]["score"])
-
-    explanation = explain(best, results)
 
     # Save final result
     supabase.table("results").insert({
@@ -359,7 +415,6 @@ st.markdown("""<hr>
             DOI
     </div>
     """,
-
     unsafe_allow_html=True)
 
 
@@ -374,3 +429,16 @@ def log_visit():
 
 log_visit()
 
+
+
+
+
+
+
+
+
+
+
+
+
+    
