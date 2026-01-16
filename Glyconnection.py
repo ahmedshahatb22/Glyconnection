@@ -14,7 +14,7 @@ from supabase import create_client
 # PAGE CONFIG
 # =====================================================
 st.set_page_config(page_title="Glyconnection", layout="centered")
-st.title("🧬 Glyconnection")
+st.title("Glyconnection")
 st.text('Enter your smiles')
 
 # =====================================================
@@ -335,7 +335,7 @@ if st.button("Analyze", key="analyze_btn"):
 if "result" in st.session_state:
     res = st.session_state.result
 
-    st.success(f"✴️ Best linkage: {res['best']}")
+    st.success(f"Best linkage: {res['best']}")
     st.subheader("Scientific Explanation")
     st.text(res["explanation"])
 
@@ -442,3 +442,4 @@ log_visit()
 
 
     
+
