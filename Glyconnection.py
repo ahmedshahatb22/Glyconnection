@@ -14,14 +14,14 @@ from supabase import create_client
 # PAGE CONFIG
 # =====================================================
 st.set_page_config(page_title="Glyconnection", layout="centered")
-st.title("Glyconnection")
+st.title("🧬 Glyconnection")
 st.text('Enter your smiles')
 
 # =====================================================
 # SUPABASE CONFIG
 # =====================================================
 SUPABASE_URL = "https://tmprgujzleuiwqszaojg.supabase.co"
-SUPABASE_KEY = "sb_publishable_6AaLYxU0X7IXnMWtnOH73A_TWqWjh1R"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRtcHJndWp6bGV1aXdxc3phb2pnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc4NTM2MDEsImV4cCI6MjA4MzQyOTYwMX0._jcpAR9gjEGtkcx__xDdSNyKqoRpa2DiNcL_ELh79OY"
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # =====================================================
@@ -335,7 +335,7 @@ if st.button("Analyze", key="analyze_btn"):
 if "result" in st.session_state:
     res = st.session_state.result
 
-    st.success(f"Best linkage: {res['best']}")
+    st.success(f"✴️ Best linkage: {res['best']}")
     st.subheader("Scientific Explanation")
     st.text(res["explanation"])
 
@@ -359,19 +359,7 @@ if "result" in st.session_state:
         """
     )
 
-    # =========================
-    # SAVE TO SUPABASE
-    # =========================
-    supabase.table("results").insert(
-        {
-            "aglycone": aglycone,
-            "sugar": sugar,
-            "best_linkage": res["best"],
-            "score": float(res["all"][res["best"]]["score"])
-        }
-    ).execute()
 
-    st.info("Result saved to database")
 
 # ==============================
 
@@ -388,19 +376,6 @@ def save_molecule(smiles, desc):
 
 
 
-    # Save final result
-    supabase.table("results").insert({
-        "aglycone": aglycone,
-        "sugar": sugar,
-        "best_linkage": best,
-        "explanation": explanation
-    }).execute()
-
-    return {
-        "best": best,
-        "all": results,
-        "explanation": explanation
-    }
 
     
     
@@ -418,16 +393,19 @@ st.markdown("""<hr>
     unsafe_allow_html=True)
 
 
-def log_visit():
-    # أول مرة فقط في الجلسة
-    if "session_id" not in st.session_state:
-        st.session_state.session_id = str(uuid.uuid4())
+def register_visit():
+    if "visited" not in st.session_state:
+        st.session_state.visited = True
+
+        session_id = str(uuid.uuid4())
+        st.session_state.session_id = session_id
 
         supabase.table("visits").insert({
-            "session_id": st.session_state.session_id
+            "session_id": session_id
         }).execute()
 
-log_visit()
+
+register_visit()
 
 
 
@@ -442,4 +420,3 @@ log_visit()
 
 
     
-
