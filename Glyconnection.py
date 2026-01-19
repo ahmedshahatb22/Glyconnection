@@ -20,9 +20,15 @@ st.text('Enter your smiles')
 # =====================================================
 # SUPABASE CONFIG
 # =====================================================
-SUPABASE_URL = "https://tmprgujzleuiwqszaojg.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRtcHJndWp6bGV1aXdxc3phb2pnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc4NTM2MDEsImV4cCI6MjA4MzQyOTYwMX0._jcpAR9gjEGtkcx__xDdSNyKqoRpa2DiNcL_ELh79OY"
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+if not SUPABASE_URL or not SUPABASE_KEY:
+    st.error("Supabase credentials not found in environment variables")
+    st.stop()
+
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
 
 # =====================================================
 # BASIC UTILITIES
@@ -420,4 +426,5 @@ register_visit()
 
 
     
+
 
