@@ -15,7 +15,6 @@ from supabase import create_client
 # PAGE CONFIG
 # =====================================================
 st.set_page_config(page_title="Glyconnection", layout="centered")
-st.text('Enter your smiles')
 
 # =====================================================
 # SUPABASE CONFIG
@@ -50,7 +49,7 @@ register_visit()
 # =====================================================
 # UI HEADER
 # =====================================================
-st.title("🧬 Glyconnection")
+st.title("Glyconnection")
 st.text('Enter your smiles')
 
 # =====================================================
@@ -373,3 +372,4 @@ st.markdown("""<hr>
     </div>
     """,
     unsafe_allow_html=True)
+
