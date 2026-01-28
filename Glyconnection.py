@@ -16,6 +16,18 @@ from supabase import create_client
 # =====================================================
 st.set_page_config(page_title="Glyconnection", layout="centered")
 
+# Google Analytics tracking (اختياري في Streamlit 1.20+)
+st.markdown("""
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-E3Y8C76G11"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-E3Y8C76G11');
+</script>
+""", unsafe_allow_html=True)
+
 # =====================================================
 # SUPABASE CONFIG
 # =====================================================
@@ -365,6 +377,7 @@ st.markdown("""<hr>
     </div>
     """,
     unsafe_allow_html=True)
+
 
 
 
