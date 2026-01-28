@@ -5,4 +5,4 @@ rdkit
 supabase
 matplotlib
 openai
-
+streamlit-cookies-manager
