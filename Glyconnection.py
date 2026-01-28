@@ -337,7 +337,7 @@ if "result" in st.session_state:
     st.subheader("Scientific Explanation")
     st.text(res["explanation"])
 
-    st.subheader("The possible variants")
+    st.subheader("The possible glycosides")
     df = pd.DataFrame(res["all"]).T
     st.dataframe(df)
 
@@ -365,6 +365,7 @@ st.markdown("""<hr>
     </div>
     """,
     unsafe_allow_html=True)
+
 
 
 
