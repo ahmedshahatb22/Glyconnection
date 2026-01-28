@@ -43,9 +43,10 @@ def register_visit():
         st.write("Visit log error:")
         st.write(e)
 
-# register_visit
-register_visit()
-
+# منع التكرار داخل نفس الـ session
+if "visit_logged" not in st.session_state:
+    st.session_state.visit_logged = True
+    register_visit()
 # =====================================================
 # UI HEADER
 # =====================================================
@@ -372,4 +373,5 @@ st.markdown("""<hr>
     </div>
     """,
     unsafe_allow_html=True)
+
 
