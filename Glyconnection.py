@@ -211,14 +211,6 @@ Reasoning:
 - LogP = {v['LogP']}
 - TPSA = {v['TPSA']}
 """
-
-    explanation += """
-General interpretation:
-• O-glycosides → higher solubility
-• N-glycosides → metabolic stability
-• C-glycosides → highest chemical stability
-• S-glycosides → lipophilicity modulation
-"""
     return explanation
 
 # =====================================================
@@ -373,5 +365,6 @@ st.markdown("""<hr>
     </div>
     """,
     unsafe_allow_html=True)
+
 
 
