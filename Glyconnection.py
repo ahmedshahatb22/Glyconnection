@@ -11,6 +11,16 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from supabase import create_client
 
+st.markdown("""
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-E3Y8C76G11"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-E3Y8C76G11');
+</script>
+""", unsafe_allow_html=True)
+
 # =====================================================
 # PAGE CONFIG
 # =====================================================
@@ -365,6 +375,7 @@ st.markdown("""<hr>
     </div>
     """,
     unsafe_allow_html=True)
+
 
 
 
